@@ -73,6 +73,9 @@ if(UNIX)
     set(GET_PROC_NUMBER_PATH "$(get_script_dir)")
     set(IS_CONDA_VAR "\n# Inside conda environment\nexport _IS_CONDA=true")
     set(SET_KHIOPS_DRIVERS_PATH "\n# Drivers search path\nexport KHIOPS_DRIVERS_PATH=$(dirname $(get_script_dir))/lib")
+  elseif(IS_PIP)
+    set(MODL_PATH "$(get_script_dir)")
+    set(GET_PROC_NUMBER_PATH "$(get_script_dir)")
   else()
     if(IS_FEDORA_LIKE)
       set(MODL_PATH "${MPI_BIN}/khiops/")
@@ -148,7 +151,11 @@ if(UNIX)
     file(READ ${TMP_DIR}/set_proc_number.sh SET_PROC_NUMBER)
 
     # Add _khiopsgetprocnumber to the khiops_core package except for openmpi
-    install(TARGETS _khiopsgetprocnumber RUNTIME DESTINATION ./${GET_PROC_NUMBER_PATH} COMPONENT KHIOPS_CORE)
+    if(IS_PIP)
+      install(TARGETS _khiopsgetprocnumber RUNTIME DESTINATION "${SKBUILD_SCRIPTS_DIR}" COMPONENT KHIOPS_CORE)
+    else()
+      install(TARGETS _khiopsgetprocnumber RUNTIME DESTINATION ./${GET_PROC_NUMBER_PATH} COMPONENT KHIOPS_CORE)
+    endif()
   endif()
 
   configure_file(${PROJECT_SOURCE_DIR}/packaging/linux/common/khiops_env/khiops_env.in ${TMP_DIR}/khiops_env @ONLY
@@ -163,17 +170,26 @@ if(UNIX)
   configure_file(${PROJECT_SOURCE_DIR}/packaging/linux/common/khiops.in ${TMP_DIR}/khiops_coclustering @ONLY
                  NEWLINE_STYLE UNIX)
 
-  install(TARGETS MODL MODL_Coclustering RUNTIME DESTINATION ${MODL_PATH} COMPONENT KHIOPS_CORE)
+  if(IS_PIP)
+    install(TARGETS MODL MODL_Coclustering RUNTIME DESTINATION "${SKBUILD_SCRIPTS_DIR}" COMPONENT KHIOPS_CORE)
+    install(
+      PROGRAMS ${TMP_DIR}/khiops ${TMP_DIR}/khiops_coclustering ${TMP_DIR}/khiops_env
+      DESTINATION "${SKBUILD_SCRIPTS_DIR}"
+      COMPONENT KHIOPS_CORE)
+  else()
+    install(TARGETS MODL MODL_Coclustering RUNTIME DESTINATION ${MODL_PATH} COMPONENT KHIOPS_CORE)
+    install(
+      PROGRAMS ${TMP_DIR}/khiops ${TMP_DIR}/khiops_coclustering ${TMP_DIR}/khiops_env
+      DESTINATION usr/bin
+      COMPONENT KHIOPS_CORE)
+  endif()
 
-  install(
-    PROGRAMS ${TMP_DIR}/khiops ${TMP_DIR}/khiops_coclustering ${TMP_DIR}/khiops_env
-    DESTINATION usr/bin
-    COMPONENT KHIOPS_CORE)
-
-  install(
-    FILES ${PROJECT_SOURCE_DIR}/LICENSE
-    DESTINATION usr/share/doc/khiops
-    COMPONENT KHIOPS_CORE)
+  if(NOT IS_PIP)  # With pip, license is already copied to pkg metadata
+    install(
+      FILES ${PROJECT_SOURCE_DIR}/LICENSE
+      DESTINATION usr/share/doc/khiops
+      COMPONENT KHIOPS_CORE)
+  endif()
 
   install(
     FILES ${PROJECT_SOURCE_DIR}/packaging/common/khiops/WHATSNEW.txt
@@ -231,12 +247,19 @@ else(UNIX)
   configure_file(${PROJECT_SOURCE_DIR}/packaging/windows/khiops.cmd.in ${TMP_DIR}/khiops_coclustering.cmd @ONLY
                  NEWLINE_STYLE CRLF)
 
-  install(TARGETS MODL MODL_Coclustering _khiopsgetprocnumber RUNTIME DESTINATION bin COMPONENT KHIOPS_CORE)
-
-  install(
-    PROGRAMS ${TMP_DIR}/khiops.cmd ${TMP_DIR}/khiops_coclustering.cmd ${TMP_DIR}/khiops_env.cmd
-    DESTINATION bin
-    COMPONENT KHIOPS_CORE)
+  if(IS_PIP)
+    install(TARGETS MODL MODL_Coclustering _khiopsgetprocnumber RUNTIME DESTINATION "${SKBUILD_SCRIPTS_DIR}" COMPONENT KHIOPS_CORE)
+    install(
+      PROGRAMS ${TMP_DIR}/khiops.cmd ${TMP_DIR}/khiops_coclustering.cmd ${TMP_DIR}/khiops_env.cmd
+      DESTINATION "${SKBUILD_SCRIPTS_DIR}"
+      COMPONENT KHIOPS_CORE)
+  else()
+    install(TARGETS MODL MODL_Coclustering _khiopsgetprocnumber RUNTIME DESTINATION bin COMPONENT KHIOPS_CORE)
+    install(
+      PROGRAMS ${TMP_DIR}/khiops.cmd ${TMP_DIR}/khiops_coclustering.cmd ${TMP_DIR}/khiops_env.cmd
+      DESTINATION bin
+      COMPONENT KHIOPS_CORE)
+  endif()
 
   if(BUILD_JARS)
     install_jar(
