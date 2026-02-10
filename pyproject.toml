@@ -1,0 +1,96 @@
+[build-system]
+requires = [
+    "scikit-build-core>=0.11.6",
+    "openmpi ; platform_system in '[Linux, Darwin]'",
+    "impi-devel ; platform_system == 'Windows'"
+]
+build-backend = "scikit_build_core.build"
+
+[project]
+name = "khiops-modl"
+description = "Khiops is a data preparation and scoring tool for supervised learning and unsupervised learning."
+readme = "README.md"
+license = "BSD-3-Clause-Clear"
+license-files = ["LICENSE"]
+authors = [{name = "The Khiops Team", email = "khiops.team@orange.com"}]
+requires-python = ">=3.9"
+dependencies = [
+    "openmpi ; platform_system in '[Linux, Darwin]'",
+    "impi-rt ; platform_system == 'Windows'"
+]
+dynamic = ["version"]
+
+##### One day...
+# [project.optional-dependencies]
+# s3 = "khiops-driver-s3"
+# gcs = "khiops-driver-gcs"
+# azure = "khiops-driver-azure"
+
+[tool.scikit-build]
+# Source distribution file selection (initial selection from .gitignore)
+sdist.exclude = [".*"]
+# Neither Python code nor CPython library usage in this package so we specify full compatibility with all Python 3 releases
+wheel.py-api = "py3"
+# Read CMake minimal version from file
+cmake.version = "CMakeLists.txt"
+# Generator specification
+cmake.args = ["-G", "Ninja"]
+# Disable testing
+cmake.define.TESTING = false
+# Set binary dir for CMake
+cmake.define.CMAKE_BINARY_DIR = "build"
+# Set binary dir for scikit-build-core (this must match the above)
+build-dir = "build"
+# Force the use of Ninja for fast builds
+ninja.make-fallback = false
+# Only install KHIOPS_CORE component in wheel
+install.components = ["KHIOPS_CORE"]
+
+[[tool.scikit-build.overrides]]
+if.platform-system = "^linux"
+inherit.cmake.args = "append"
+cmake.args = ["--preset", "linux-gcc-release"]
+
+[[tool.scikit-build.overrides]]
+if.platform-system = "^darwin"
+inherit.cmake.args = "append"
+cmake.args = ["--preset", "macos-clang-release"]
+
+[[tool.scikit-build.overrides]]
+if.platform-system = "^win32"
+inherit.cmake.args = "append"
+cmake.args = ["--preset", "windows-msvc-release"]
+
+[tool.scikit-build.metadata]
+# Read package version from file, adapt it for Python version specification
+version.provider = "scikit_build_core.metadata.regex"
+version.input = "src/Learning/KWUtils/KWKhiopsVersion.h"
+# Example #define PP-instruction: #define KHIOPS_VERSION KHIOPS_STR(10.5.0-a.1)
+# Example version string: 10.5.0-a.1
+# Python equivalent: 10.5.0a1
+version.regex = '''(?x)
+    \# \s* define \s+ KHIOPS_VERSION \s+ KHIOPS_STR
+    \(
+    (?P<major> \d+)
+    \.
+    (?P<minor> \d+)
+    \.
+    (?P<patch> \d+)
+    (?:
+        -
+        (?P<prereltype> a | b | rc)
+        \.
+        (?P<prereln> \d+)
+    )?
+    \)
+'''
+version.result = "{major}.{minor}.{patch}{prereltype}{prereln}"
+version.remove = "(None){,2}$"  # prereltype and prereln groups are None if not found
+
+[tool.cibuildwheel]
+# Build wheel with CPython 3.9 only since other versions would give similar wheels
+build = "cp39*"
+# Khiops does not compile when using musl as the C standard library
+skip = "*musllinux*"
+# Install shared libraries in wheel using only CMake, so remove the default command
+repair-wheel-command = ""

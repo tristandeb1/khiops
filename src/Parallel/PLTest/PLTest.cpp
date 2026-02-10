@@ -9,7 +9,11 @@ int main(int argv, char** argc)
 #if defined(USE_MPI)
 // Pour indiquer les libraries a utiliser par le linker
 // Potentiellement inutile apres utilisation de cmake
+#if defined(USE_IMPI_INSTEAD_OF_MSMPI)
+#pragma comment(lib, "impi")
+#else
 #pragma comment(lib, "msmpi")
+#endif
 #pragma comment(lib, "PLMPI")
 
 	// Mise en place du fdriver parallel
